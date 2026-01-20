@@ -1,5 +1,4 @@
-const BIN_ID = "696f8880d0ea881f40785d9b";
-const API_KEY = "$2a$10$.0wgUoKx83WASDNVYVIHEOaaEWyRGvHiwBiU0rqN6YyTwSZWK7pky";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwtdG-9FhmM1bwyPijmZTNHYqnMsDTT1jRGiGJ7SurKGUih7-zTy6LPPPRJJNbSeE9z_Q/exec";
 
 let currentUser = null;
 let myNumbers = new Set(); 
@@ -16,30 +15,38 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchLeaderboard();
 });
 
-function login() {
+async function login() {
     const nameInput = document.getElementById('username');
     const name = nameInput.value.trim();
     
-    if (!name) {
-        showMessage("Please enter a name!");
-        return;
-    }
-    
     currentUser = name;
-    
-    document.getElementById('login-section').classList.add('hidden');
-    document.getElementById('game-section').classList.remove('hidden');
-
     localStorage.setItem('bingo_current_user', currentUser);
     document.getElementById('name').innerText = currentUser;
+
+    document.getElementById('login-section').classList.add('hidden');
+    document.getElementById('game-section').classList.remove('hidden');
     
-    const savedData = localStorage.getItem('bingo_' + currentUser);
-    if (savedData) {
-        myNumbers = new Set(JSON.parse(savedData));
+    const localData = localStorage.getItem('bingo_' + currentUser);
+    if (localData) {
+        myNumbers = new Set(JSON.parse(localData));
+        renderGrid();
     }
-    
-    renderGrid();
-    fetchLeaderboard();
+
+    try {
+        const res = await fetch(GOOGLE_SCRIPT_URL);
+        const allData = await res.json();
+        const myRemoteData = allData.find(u => u.name === currentUser);
+        
+        if (myRemoteData && myRemoteData.data) {
+            const remoteNumbers = JSON.parse(myRemoteData.data);
+            remoteNumbers.forEach(num => myNumbers.add(num));
+            
+            localStorage.setItem('bingo_' + currentUser, JSON.stringify([...myNumbers]));
+            renderGrid();
+        }
+        
+        renderLeaderboard(allData);
+    } catch (e) { console.error(e); }
 }
 
 function renderGrid() {
@@ -77,45 +84,27 @@ async function saveProgress() {
     localStorage.setItem('bingo_' + currentUser, JSON.stringify([...myNumbers]));
 
     try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-            headers: { "X-Access-Key": API_KEY }
+        await fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({ 
+                name: currentUser, 
+                data: [...myNumbers],
+                percent: myNumbers.size 
+            })
         });
-        const json = await res.json();
-        let allPlayers = json.record;
-
-        const myIndex = allPlayers.findIndex(p => p.name === currentUser);
-        if (myIndex >= 0) {
-            allPlayers[myIndex].percent = myNumbers.size;
-        } else {
-            allPlayers.push({ name: currentUser, percent: myNumbers.size });
-        }
-
-        await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-            method: "PUT",
-            headers: { 
-                "Content-Type": "application/json",
-                "X-Access-Key": API_KEY
-            },
-            body: JSON.stringify(allPlayers)
-        });
-
-        renderLeaderboard(allPlayers);
-
-    } catch (error) {
-        console.error("Sync failed:", error);
+        fetchLeaderboard();
+    } catch (e) {
+        console.error("Save failed", e);
     }
 }
 
 async function fetchLeaderboard() {
     try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-            headers: { "X-Access-Key": API_KEY }
-        });
-        const json = await res.json();
-        console.log("Fetched leaderboard:", json.record);
-        renderLeaderboard(json.record);
-    } catch (error) {
-        console.error("Fetch failed:", error);
+        const res = await fetch(GOOGLE_SCRIPT_URL);
+        const data = await res.json();
+        renderLeaderboard(data);
+    } catch (e) {
+        console.error("Fetch failed", e);
     }
 }
 

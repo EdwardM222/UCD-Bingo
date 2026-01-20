@@ -14,8 +14,10 @@
 
         <div id="login-section" class="input-group">
             <p>Who are you?</p>
-            <input type="text" id="username" placeholder="Enter your name" />
-            <button id="login-btn">Start Playing</button>
+            <form onsubmit="login(); return false;">
+                <input type="text" id="username" placeholder="Enter your name" required/>
+                <button id="login-btn">Start Playing</button>
+            </form>
         </div>
 
         <div id="game-section" class="hidden">
