@@ -1,57 +1,84 @@
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwtdG-9FhmM1bwyPijmZTNHYqnMsDTT1jRGiGJ7SurKGUih7-zTy6LPPPRJJNbSeE9z_Q/exec";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbaJZwKLtfqboepVjv3S-nBi7od0On4l08lSlZcju913f_51RaWcE9AdiGN-oYM1lsZw/exec"; 
 
 let currentUser = null;
-let myNumbers = new Set(); 
+let myNumbers = new Set();
+let allData = [];
+let savedUser = null;
+
+let isSaving = false;
+let reSave = false;
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('login-btn').addEventListener('click', login);
 
-    const savedUser = localStorage.getItem('bingo_current_user');
+    document.getElementById('username').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') login();
+    });
+
+    savedUser = localStorage.getItem('bingo_current_user');
     if (savedUser) {
         document.getElementById('username').value = savedUser;
         login();
     }
 
-    fetchLeaderboard();
+    fetchData();
 });
 
 async function login() {
     const nameInput = document.getElementById('username');
     const name = nameInput.value.trim();
     
+    if (!name) {
+        alert("Please enter a name!");
+        return;
+    }
+    
     currentUser = name;
     localStorage.setItem('bingo_current_user', currentUser);
-    document.getElementById('name').innerText = currentUser;
-
+    
     document.getElementById('login-section').classList.add('hidden');
     document.getElementById('game-section').classList.remove('hidden');
     
-    const localData = localStorage.getItem('bingo_' + currentUser);
-    if (localData) {
-        myNumbers = new Set(JSON.parse(localData));
+    document.getElementById('name').innerText = currentUser;
+
+    if (!savedUser) {
+        updateMyNumbers();
         renderGrid();
     }
+}
 
+async function fetchData() {
     try {
         const res = await fetch(GOOGLE_SCRIPT_URL);
-        const allData = await res.json();
-        const myRemoteData = allData.find(u => u.name === currentUser);
+        const data = await res.json();
         
-        if (myRemoteData && myRemoteData.data) {
-            const remoteNumbers = JSON.parse(myRemoteData.data);
-            remoteNumbers.forEach(num => myNumbers.add(num));
-            
-            localStorage.setItem('bingo_' + currentUser, JSON.stringify([...myNumbers]));
-            renderGrid();
+        for (const player of data) {
+            player.numbers = new Set(JSON.parse(player.numbers));
         }
-        
-        renderLeaderboard(allData);
-    } catch (e) { console.error(e); }
+
+        allData = data;
+
+        updateMyNumbers();
+        renderGrid();
+        renderLeaderboard();
+    } catch (e) {
+        console.error("Fetch failed", e);
+    }
+}
+
+function updateMyNumbers() {
+    const me = allData.find(player => player.name === currentUser);
+    if (me) {
+        myNumbers = me.numbers;
+    } else {
+        myNumbers = new Set();
+    }
 }
 
 function renderGrid() {
     const grid = document.getElementById('bingo-grid');
     grid.innerHTML = "";
+    grid.style.gridTemplateColumns = `repeat(10, 1fr)`;
 
     for (let i = 0; i < 100; i++) {
         const btn = document.createElement('button');
@@ -63,9 +90,31 @@ function renderGrid() {
         }
 
         btn.onclick = () => toggleNumber(i, btn);
-        
         grid.appendChild(btn);
     }
+}
+
+function renderLeaderboard() {
+    const list = document.getElementById('leaderboard-list');
+    list.innerHTML = "";
+    
+    allData.sort((a, b) => b.numbers.size - a.numbers.size);
+    allData.forEach(player => {
+        const row = document.createElement('div');
+        row.className = 'player-row-container';
+        row.style.marginBottom = '8px';
+        
+        row.innerHTML = `
+            <div style="display:flex; justify-content:space-between; font-size: 0.9rem;">
+                <span>${player.name}</span>
+                <span>${player.numbers.size}%</span>
+            </div>
+            <div class="progress-bar"">
+                <div class="progress-fill" style="width:${player.numbers.size}%;"></div>
+            </div>
+        `;
+        list.appendChild(row);
+    });
 }
 
 function toggleNumber(num, btnElement) {
@@ -81,51 +130,32 @@ function toggleNumber(num, btnElement) {
 }
 
 async function saveProgress() {
-    localStorage.setItem('bingo_' + currentUser, JSON.stringify([...myNumbers]));
+    console.log("Saving progress...");
+    if (isSaving) {
+        reSave = true;
+        console.log("Save already in progress, will re-save when done.");
+        return;
+    }
 
+    isSaving = true;
     try {
         await fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
             body: JSON.stringify({ 
                 name: currentUser, 
-                data: [...myNumbers],
-                percent: myNumbers.size 
+                numbers: [...myNumbers]
             })
         });
-        fetchLeaderboard();
+        fetchData();
     } catch (e) {
-        console.error("Save failed", e);
+        console.error("Cloud save failed", e);
+    } finally {
+        if (reSave) {
+            reSave = false;
+            console.log("Re-saving progress...");
+            saveProgress();
+        }
+        isSaving = false;
+        console.log("Save complete.");
     }
-}
-
-async function fetchLeaderboard() {
-    try {
-        const res = await fetch(GOOGLE_SCRIPT_URL);
-        const data = await res.json();
-        renderLeaderboard(data);
-    } catch (e) {
-        console.error("Fetch failed", e);
-    }
-}
-
-function renderLeaderboard(data) {
-    const list = document.getElementById('leaderboard-list');
-    list.innerHTML = "";
-    
-    data.sort((a, b) => b.percent - a.percent);
-
-    data.forEach(player => {
-        const row = `
-            <div class="player-row-container">
-                <div class="player-info">
-                    <span>${player.name}</span>
-                    <span>${player.percent}%</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${player.percent}%;"></div>
-                </div>
-            </div>
-        `;
-        list.innerHTML += row;
-    });
 }

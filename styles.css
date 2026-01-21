@@ -98,17 +98,13 @@ button:hover { background: #3a7bd5; color: white; }
 .progress-fill {
     height: 100%;
     background: #00d2ff;
-    width: 0%;
     transition: width 0.5s ease-out;
 }
 
 .grid-container {
     display: grid;
-    grid-template-columns: repeat(10, 1fr);
     gap: 4px;
     margin-bottom: 1.5rem;
-    /* max-height: 400px; */
-    /* overflow-y: auto; */
     padding-right: 5px;
 }
 

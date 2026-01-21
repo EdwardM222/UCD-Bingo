@@ -14,15 +14,15 @@
 
         <div id="login-section" class="input-group">
             <p>Who are you?</p>
-            <form onsubmit="login(); return false;">
-                <input type="text" id="username" placeholder="Enter your name" required/>
-                <button id="login-btn">Start Playing</button>
-            </form>
+            <input type="text" id="username" placeholder="Enter your name" />
+            <button id="login-btn">Start Playing</button>
         </div>
 
         <div id="game-section" class="hidden">
             <p id="name">Username</p>
-            <div id="bingo-grid" class="grid-container"></div>
+            <div id="bingo-grid" class="grid-container">
+                <p class="loading-text">Loading...</p>
+            </div>
         </div>
 
         <div class="leaderboard">
