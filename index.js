@@ -142,7 +142,8 @@ async function saveProgress() {
             method: "POST",
             body: JSON.stringify({ 
                 name: currentUser, 
-                numbers: [...myNumbers]
+                numbers: [...myNumbers],
+                secret: "bingo_secret_key_123674"
             })
         });
         fetchData();
