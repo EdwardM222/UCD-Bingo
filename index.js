@@ -1,4 +1,4 @@
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbaJZwKLtfqboepVjv3S-nBi7od0On4l08lSlZcju913f_51RaWcE9AdiGN-oYM1lsZw/exec"; 
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw09GpcR7upgap13QeK4bvc7xMZnS-q7jGRpc1ZqDwxZIl-UEnSrBmj0HL6bGffhIYsVA/exec"; 
 
 let currentUser = null;
 let myNumbers = new Set();
