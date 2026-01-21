@@ -4,9 +4,7 @@ let currentUser = null;
 let myNumbers = new Set();
 let allData = [];
 let savedUser = null;
-
 let isSaving = false;
-let reSave = false;
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('login-btn').addEventListener('click', login);
@@ -63,6 +61,9 @@ async function fetchData() {
         renderLeaderboard();
     } catch (e) {
         console.error("Fetch failed", e);
+    } finally {
+        isSaving = false;
+        document.getElementById('delay-msg').classList.add('hidden');
     }
 }
 
@@ -118,6 +119,12 @@ function renderLeaderboard() {
 }
 
 function toggleNumber(num, btnElement) {
+    if (isSaving) {
+        document.getElementById('delay-msg').classList.remove('hidden');
+        return;
+    }
+
+    isSaving = true;
     if (myNumbers.has(num)) {
         myNumbers.delete(num);
         btnElement.classList.remove('collected');
@@ -130,14 +137,6 @@ function toggleNumber(num, btnElement) {
 }
 
 async function saveProgress() {
-    console.log("Saving progress...");
-    if (isSaving) {
-        reSave = true;
-        console.log("Save already in progress, will re-save when done.");
-        return;
-    }
-
-    isSaving = true;
     try {
         await fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
@@ -149,13 +148,5 @@ async function saveProgress() {
         fetchData();
     } catch (e) {
         console.error("Cloud save failed", e);
-    } finally {
-        if (reSave) {
-            reSave = false;
-            console.log("Re-saving progress...");
-            saveProgress();
-        }
-        isSaving = false;
-        console.log("Save complete.");
     }
 }
